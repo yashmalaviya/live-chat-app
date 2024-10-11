@@ -1,0 +1,26 @@
+<!--Extend the base template i.e. base.html so we don't have to rewrite the whole boilerplate.-->
+{% extends 'base.html' %}
+
+<!--The content here will go the <div> tag in base.html-->
+{% block content %}
+<form method="post" class="button">
+    <h3>Enter the Chat Room</h3>
+    <div>
+        <label>Name:</label>
+        <input type="text" placeholder="Pick a name!" name="name" value="{{name}}" /> <!--The 'name' attribute is used primarily with form elements
+        to identify input fields, allowing the data to be sent to the server when the form is submitted.-->
+    </div>
+    <div class="join">
+        <input type="text" placeholder="Room Code" name="code" value="{{code}}" />
+        <button type="submit" name="join">Join a Room</button>
+    </div>
+    <button type="submit" name="create" class="create-btn">Create a Room</button>
+
+    <!--Check if there is an error value from main.py. If yes, then show the error message.-->
+    {% if error %}
+    <ul>
+        <li>{{error}}</li>
+    </ul>
+    {% endif %}
+</form>
+{% endblock %}

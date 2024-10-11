@@ -1,0 +1,56 @@
+{% extends 'base.html' %} {% block content %}
+<div class="message-box">
+    <h2>Chat Room: {{code}}</h2>
+    <div class="messages" id="messages"></div>
+    <div class="inputs">
+        <input type="text" rows="3" placeholder="Message" name="message" id="message" />
+        <button type="button" name="send" id="send-btn" onClick="sendMessage()">
+            Send
+        </button>
+    </div>
+</div>
+
+<script type="text/javascript">
+    //When we initialize socketio using io(), we're gonna directly connect to the socket associated with the server on which website is on.
+    // In our case, we are going to connect with the socket associated with our Flask website.
+    var socketio = io(); //We are able to use io() as we have script tag defined accordingly in the home.html
+
+    const messages = document.getElementById("messages")
+
+    const createMessage = (name, msg) => {
+        const content = `
+        <div class="text">
+            <span>
+                <strong>${name}</strong>: ${msg}
+            </span>
+            <span class="dateAndTime">
+                ${new Date().toLocaleString()}
+            </span>
+        </div>
+        `;
+        messages.innerHTML += content; //Entering the content written by above code, into the <div> tag with class "messages".
+    };
+
+    // Below we are trying to listen to an message event transmitted from our Python Flask socket server...
+    // and we call the event as "message" which will contain the "data" i.e. the message we want to send.
+    socketio.on("customEvent", (data) => {
+        createMessage(data.name, data.message); //Creating message using createMessage() method and putting it inside the message <div> written above.
+    });
+
+    const sendMessage = () => {
+        const message = document.getElementById("message");
+        if (message.value == "") return; //If there's no message typed, then don't send anything
+        socketio.emit("sentMessage", { data: message.value });
+        message.value = ""; //After the message has been sent, just make the message an empty string again.
+    };
+</script>
+
+<!--To load all the message history, even if the page is refreshed.
+Using for loop to loop through all the messages stored in the "messages" dictionary passed as argument in main.py while rendering room.html-->
+{% for msg in messages %}
+<script type="text/javascript">
+    createMessage("{{msg.name}}", "{{msg.message}}");
+</script>
+{% endfor %}
+
+{% endblock %}

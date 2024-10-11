@@ -1,0 +1,30 @@
+<!--Base HTML which will act as a base for our base template or a generic style for our website
+We just override base.html in home.html and room.html-->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Live Chat App</title>
+    <link rel="stylesheet" href="{{url_for('static', filename='css/style.css')}}" />
+
+    <!--Script tag allows us to use the socketIO module, which is in JS.
+        We're going to use that to communicate with our backend python web application.
+        Found the script tag on Flask socketIO Documentation on their website-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
+        integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
+        crossorigin="anonymous">
+        </script>
+</head>
+
+<body>
+    <div class="content">{% block content %} {% endblock %}</div>
+    <!--A Block is a reusable part of code, that can be overriden by children like home.html and room.html.
+    In one of my child templates (home.html, room.html), I can write the same thing (the 'block' stuff)
+    and anything that I put inside of that block will override anything that is currently here.
+    This allows us to dynamically inject code into the existing HTML template, hence, we no need to rewrite the
+    whole html document structure.-->
+</body>
+
+</html>
