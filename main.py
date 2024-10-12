@@ -4,76 +4,74 @@ import random
 from string import ascii_uppercase
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "jfjfjfj"
+app.config["SECRET_KEY"] = "jfjfjfj" # Secure app configuration.
 socketio = SocketIO(app)
 
-# Making a dictonary to store the details of the already present Chat Rooms.
+# Dictonary to store active chat room details.
 rooms = {}
 
-# Function for creating random room codes:
+# Function to generate a random room code of specified length.
 def generate_unique_code(length):
     while True:
         code = ""
         for _ in range(length):
-            code += random.choice(ascii_uppercase)
+            code += random.choice(ascii_uppercase) #Create a random code
         
-        # If the generated chat room code doesn't exist already in the created rooms list, then break the loop.
-        if code not in rooms:
+        if code not in rooms: # Ensure that the generated code is unique.
             break
 
     return code
 
-# HomePage route: Home page is where we will land, or page before entering to any chat room.
+# HomePage route
 @app.route('/', methods=['POST', 'GET']) # POST for posting the chat room unique ID, and GET to get the home page.
 def home():
-
-    #clearing session data when user goes back to home page, so that they can create or join a new chat.
-    session.clear()
-    # Check if the request method is "POST" i.e. we are trying to get the form data when the user clicks on "Submit" Button.
-    #'request.form' is a python dictionary.
+    """Handles the landing page where users can create or join chat rooms."""
+    session.clear()  # Clear session data on navigating back to the home page
+    
     if request.method == "POST":
-        name = request.form.get("name") #get() function fetches the values of "name" key. If the value doesn't exist, it'll return none.
-        code = request.form.get("code") #get() function fetches the values of "code" key. If the value doesn't exist, it'll return none.
-        '''
-            Below mentioned "join" and "create" are button, hence, they don't have any value associated with them,
-            we are just trying to get the keys, to know that the buttons are pressed.
-        '''
-        join = request.form.get("join", False) # get() function fetches the values of "join" key. We provide second arg. as "False"...(below)
-        create = request.form.get("create", False)# ... "False", as if the user doesn't not click on "join" or "create" button, instead of returning none, we'll get False.
+        name = request.form.get("name") # Fetching the user's name
+        code = request.form.get("code") # Fetching the room code
+        
+        # Determine if the user pressed 'Join' or 'Create'.
+        join = request.form.get("join", False) # If the user doesn't press 'join', it returns False, instead of 'None'
+        create = request.form.get("create", False) # If the user doesn't press 'create', it returns False, instead of 'None'
 
-        # Checking if the user haven't provided the 'name'. We will give an error if 'name' is empty.
+         
+        # Check if the user has entered a name
         if not name:
             return render_template('home.html', error='Please enter a name', code=code, name=name)
         
-        # Checking if the user has pressed 'join' or 'create':
-          # Checking if user has not clicked 'join' button and their is no entered 'code':
-        if join != False and not code:
+        # If trying to join a room but no code is entered
+        if join and not code:
             return render_template('home.html', error="Please Enter a Room Code.!!!", code=code, name=name)
 
         room = code
 
-        # Checking if 'create' button is pressed. It means that user wants to create a chat room
+        # Handles room creation: Create a new room if 'create' is pressed.
         if create != False:
-            room = generate_unique_code(4) #defined above.
+            room = generate_unique_code(4)   # Generate a 4-character room code
             rooms[room] = {'members': 0, 'messages': []}
-        # Checking if they have not pressed "create" button. It means that if the user don't want to create a room, instead they want to 'join' a Chat room.
-        # Checking if the entered 'code' is not available alread in the room dictionary. Hence, give an error.
+        
+
+        # If joining, check if the room code exists
         elif code not in rooms:
             return render_template("home.html", error="Room does not exist !!!", code=code, name=name)
         
         # A session is a way to store information about user's interaction with a web application across MULTIPLE REQUESTS.
-        session["room"] = room # Storing the room code in which user is or is going to be in.
-        session["name"] = name # Storing the name of the user.
+        # Store session details for the room and name.
+        session["room"] = room
+        session["name"] = name
 
-        # Redirect to the Chat Room (a different route define later)
-        return redirect(url_for("room"))
+        return redirect(url_for("room")) # Redirect to chat room.
 
     return render_template('home.html')
 
 @app.route("/room")
 def room():
-    # Writing the below code, so that if a user tries to directly access the "room" page by manually typing '/room', it doesn't goes to the room page.
+    """Displays the chat room page if session data is valid."""
     room = session.get("room")
+
+    # If no room or invalid session data, redirect to home
     if room is None or session.get("name") is None or room not in rooms:
         return redirect(url_for("home"))
 
@@ -81,31 +79,35 @@ def room():
 
 @socketio.on("sentMessage")
 def message(data):
+    """Handles the message event when a user sends a message."""
     room = session.get("room")
     if room not in rooms:
         return
     
+    # Prepare content of the message
     content = {
         "name": session.get('name'),
         "message": data['data']
     }
-    socketio.emit("customEvent", content, to=room) #this send the content back to all the clients. socketio.on("customEvent", (data)) in room.html will listen to this...
-                            #We can also use, send() method which by default assigns the event name to "message", which is heard by the socketio() in room.html
-                            # then we have to change the eventlistener socketio.on() event name from "customEvent" to "message".
-    rooms[room]["messages"].append(content) # If the server restarts, we will loose all messages, as the "rooms" dict is in RAM (local),...
-    # we can use a DB to store the messages, so that the history of messages does not go away.
+
+    # Emit the message to all the client in the room.
+    socketio.emit("customEvent", content, to=room)
+
+    # Store the message in the room’s message history
+    rooms[room]["messages"].append(content)
+
     print(f"{session.get('name')} said: {data['data']}") #Logging
 
-# Connection Route - Joining the Chat Room
-# Using @socketio as that's the initilization object for the SocketIO Library. (In the beginning).
+
 @socketio.on("connect")
 def connect(auth):
+    """Handles when a user connects to a room."""
     room = session.get("room")
     name = session.get("name")
 
-    # Just confirming anybody is not directly coming to any room before inputting the room code and their name.
     if not room or not name:
         return
+    
     # Making sure that the room exists.
     if room not in rooms:
         leave_room(room)
@@ -120,14 +122,16 @@ def connect(auth):
 # Disconnection - Leaving the Chat Room
 @socketio.on("disconnect")
 def disconnect():
+    """Handles when a user disconnects from a room."""
     room = session.get("room")
     name = session.get("name")
     leave_room(room)
 
+
     if room in rooms:
         rooms[room]["members"] -= 1
-        if rooms[room]["members"] <= 0: #If everybody left the room, and there's no one,...
-            del rooms[room] #...Then... Delete the room.
+        if rooms[room]["members"] <= 0:
+            del rooms[room] # Delete the room if no members remain.
 
     socketio.emit("customEvent", {"name": name, "message": "has left the room"}, to=room)
     print(f"{name} has left the room {room}")
